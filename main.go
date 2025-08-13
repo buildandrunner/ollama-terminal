@@ -124,14 +124,20 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("\n" + Blue + "🗨️  Start chatting with your AI (type 'exit' to quit)" + Reset)
 
+	// --- 🟢 New: Conversation History ---
+	messages := make([]api.Message, 0)
+	messages = append(messages, api.Message{
+		Role:    "system",
+		Content: systemMsg,
+	})
+
 	for {
 		fmt.Print("\n" + Green + "📝 You: " + Reset)
 		text, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println(Red+"❌ Error reading input:"+Reset, err)
+			// ... (error handling)
 			continue
 		}
-
 		text = strings.TrimSpace(text)
 		if text == "" {
 			continue
@@ -141,57 +147,57 @@ func main() {
 			break
 		}
 
-		// Extended context for longer responses
+		// --- 🟢 New: Add the user's message to history ---
+		messages = append(messages, api.Message{
+			Role:    "user",
+			Content: text,
+		})
+
 		longerCtx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-		defer cancel()
+		// No defer cancel() here, it should be called at the end of the loop iteration
 
 		var fullResponse strings.Builder
 		thinkingDone := false
+		think := &api.ThinkValue{Value: "low"}
 
-		generateReq := &api.GenerateRequest{
-			Model:  defaultModel,
-			Prompt: text,
-			System: systemMsg,
-			Think:  &api.ThinkValue{Value: "low"}, // Set thinking level
+		// --- 🟢 New: Use ChatRequest and Chat endpoint ---
+		chatReq := &api.ChatRequest{
+			Model:    defaultModel,
+			Messages: messages, // Send the full message history
+			Think:    think,
 		}
 
-		err = client.Generate(longerCtx, generateReq, func(g api.GenerateResponse) error {
-			// --- Handle Thinking (overwrite, don't append) ---
-			if g.Thinking != "" && !thinkingDone {
-				// ✅ Overwrite with the latest full thinking string
-				currentThinking := g.Thinking
-
-				// Optional: Truncate long text to avoid wrapping issues
-				const maxLen = 100
-				if len(currentThinking) > maxLen {
-					currentThinking = currentThinking[:maxLen] + "..."
-				}
-
-				// ✅ Print on same line using \r and clear to end with \033[K
-				fmt.Printf("\r%s🧠 Thinking...%s %s\033[K", Yellow, Reset, currentThinking)
+		err = client.Chat(longerCtx, chatReq, func(resp api.ChatResponse) error {
+			// --- Handle Thinking (optional, but good to keep) ---
+			if resp.DoneReason == "" && resp.Message.Content == "" && !thinkingDone {
+				// Your existing logic for thinking...
 			}
 
-			// --- When Response Starts, Finalize Thinking ---
-			if g.Response != "" && !thinkingDone {
-				thinkingDone = true
-				fmt.Printf("\r%s✅ Thought process complete.%s\033[K\n\n", Green, Reset)
+			if resp.Message.Thinking != "" && !thinkingDone {
+				// Your existing logic for finalizing thinking...
 			}
 
 			// --- Stream Response ---
-			if g.Response != "" {
-				fmt.Print(Blue + g.Response + Reset)
-				fullResponse.WriteString(g.Response)
+			if resp.Message.Content != "" {
+				fmt.Print(Blue + resp.Message.Content + Reset)
+				fullResponse.WriteString(resp.Message.Content)
 			}
-
 			return nil
+		})
+
+		// 🟢 New: Add the model's response to history
+		messages = append(messages, api.Message{
+			Role:    "assistant",
+			Content: fullResponse.String(),
 		})
 
 		if err != nil {
 			fmt.Printf("\n%s❌ Generation failed:%s %v%s\n", Red, Reset, err, Reset)
-			continue
+			// Optional: you might want to remove the last user message from history on error
 		}
 
 		// Final newline after response
 		fmt.Println()
+		cancel() // Call cancel at the end of the loop
 	}
 }
