@@ -88,33 +88,6 @@ func main() {
 	fmt.Printf("\n%s💬 Default Chat Model:%s %s\n", Yellow, Reset, defaultModel)
 	fmt.Printf("%s🧩 Embedding Model:%s %s\n", Yellow, Reset, embeddingModel)
 
-	// Pull embedding model
-	pullReq := &api.PullRequest{Model: embeddingModel}
-	fmt.Printf("\n%s🔽 Pulling embedding model:%s %s...%s\n", Cyan, Reset, embeddingModel, Reset)
-	pullProgressFn := func(r api.ProgressResponse) error {
-		if r.Status == "success" {
-			fmt.Printf("%s✅ Pulled model: %s%s\n", Green, r.Status, Reset)
-		} else {
-			fmt.Printf("   %s\n", r.Status)
-		}
-		return nil
-	}
-	if err := client.Pull(context.Background(), pullReq, pullProgressFn); err != nil {
-		log.Fatalln(Red+"[ERROR]"+Reset, "Pull failed:", err)
-	}
-
-	// Test embedding
-	embedInput := "Mary had a little lamb"
-	embedReq := &api.EmbedRequest{
-		Model: embeddingModel,
-		Input: embedInput,
-	}
-	embedRes, err := client.Embed(ctx, embedReq)
-	if err != nil {
-		log.Fatalln(Red+"[ERROR]"+Reset, "Embedding failed:", err)
-	}
-	fmt.Printf("\n%s🧮 Generated embedding for:%s '%s' → %d dimensions\n", Purple, Reset, embedInput, len(embedRes.Embeddings[0]))
-
 	// Show model capabilities
 	showReq := &api.ShowRequest{Model: defaultModel}
 	showRes, err := client.Show(ctx, showReq)
