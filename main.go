@@ -52,7 +52,13 @@ func main() {
 
 	fmt.Println(Cyan + "🔌 Connecting to Ollama..." + Reset)
 	if err := client.Heartbeat(ctx); err != nil {
-		log.Fatalln(Red+"[ERROR]"+Reset, "Is Ollama running? Connect failed:", err)
+		fmt.Fprintf(os.Stderr, "\n%s❌  OLLAMA CONNECTION FAILED%s\n", Red, Reset)
+		fmt.Fprintf(os.Stderr, "────────────────────────────────────\n")
+		fmt.Fprintf(os.Stderr, "📡  Could not reach Ollama at http://127.0.0.1:11434\n")
+		fmt.Fprintf(os.Stderr, "💡  Tip: Start Ollama with: %sollama serve%s\n", Yellow, Reset)
+		fmt.Fprintf(os.Stderr, "📦  Get Ollama: https://ollama.com/download\n")
+		fmt.Fprintf(os.Stderr, "────────────────────────────────────\n\n")
+		os.Exit(1)
 	}
 	fmt.Println(Green + "✅ Connected successfully!" + Reset)
 
